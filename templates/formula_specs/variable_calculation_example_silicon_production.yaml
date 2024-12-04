@@ -1,0 +1,40 @@
+- variabel: "si_produksjon"
+  scenario: "referansebane"
+  koordinater:
+    - kategori:
+        sektor: "industri"
+        utslippskilde: "industri_kilde"
+        bidrag: "rec_silicone"
+      koordinater:
+        - år: "år0--siste_stat_år"
+          formler:
+            - si_produksjon_stat  # Taken from input data/statistics, in "data_input" scenario
+        - år: "siste_stat_år--sluttår"
+          formler:
+            - AVG(si_produksjon_stat{år=2017--siste_stat_år}) * si_produksjon_vekstfaktor@**(år-siste_stat_år)
+            # AVG represents the average, taken across all elements of the array
+            # `siste_stat_år` here is a model parameter rather than a variable. They can be used just like variables, but do not depend on any dimensions.
+            # TODO: Consider whether we should use a special notation for model parameters, like adding $ in front, to make finding them easier, and parsing simpler.
+            # Can consider whether to allow specifying dimensions to average over,
+            # and whether to use more Norwegian function names, or making them changeable with language settings.
+- variabel: "si_produksjon_vekstfaktor"
+  scenario: "referansebane"
+  koordinater:
+    - kategori:
+        sektor: "industri"
+        utslippskilde: "industri_kilde"
+        bidrag: "rec_silicone"
+      koordinater:
+        - bane: "middel"
+          formler:
+            - EKSPREG_VEKSTFAKTOR(si_produksjon_stat{år=2017--siste_stat_år}, sigma=0)
+        - bane: "øvre"
+          formler:
+            - EKSPREG_VEKSTFAKTOR(si_produksjon_stat{år=2017--siste_stat_år}, sigma=1.0)
+        - bane: "nedre"
+          formler:
+            - EKSPREG_VEKSTFAKTOR(si_produksjon_stat{år=2017--siste_stat_år}, sigma=-1.0)
+            # The "EKSPREG_VEKSTFAKTOR" will here be a function that calculates the
+            # growth factor of a time series through logarithmic regression. The `sigma`
+            # parameter allows one to get a factor that is higher or lower than the mean
+            # estimated factor by the given number of standard deviations.

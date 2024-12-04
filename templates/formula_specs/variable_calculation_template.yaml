@@ -1,0 +1,35 @@
+variabel: {{ variable_name }}  # Which variable is being calculated.
+scenario: {{ scenario_name }}  # Which scenario the variable is being calculated for. Different scenarios may be calculated for the same variable in different files.
+koordinater:  # Calculations for different parts of the space, as a list of dictionaries.
+  # There can be nested levels of coordinate specifications if needed, where the coordinates
+  # specified in the outer layers are used as the default value for the given dimension(s)
+  # in all the inner layers (though the values can be overridden by explicit indexing in the formula expressions).
+  - år: {{ years_or_range }}  # Years for which the current calculation applies (list, or range specified by a "YYYY-YYYY" string)
+    gass: {{ gas_names }}  # Gas(es) for which the current calculation applies, as a list
+  # In general, one can specify lists of coordinates for any dimension that the variable depends on. For any dimensions *not* given here, the calculation will be applied to all coordinates of that dimension
+    kategori:  # This is a special dimension, since it has subcomponents (like MultiIndex)
+      sektor: {{ sector_names }}  # Short-form names for sectors, as a list
+      utslippskilde: {{ source_names }}  # Short-form names for sources, as a list
+      bidrag: {{ contribution_names }}  # Short-form names for contributions, as a list
+      # If a variable is common for an entire dimension, or an entire utslippskilde, the levels below that should and must be left out.
+    formler:
+      - {{ formula0 }}  # Formula. Regular arithmetic expression, that can contain other variable names, and `år` (or the name of the time dimension).
+      - {{ formula1 }}  # Variable names by default refers to the value in the *previous* scenario, unless it is suffixed by an at-sign ("@") (for the current scenario) or explicitly indexed.
+      # Variables can refer to other dimension coordinates than the ones given in the header (explicit indexing) by suffixing with `{}`, with coordinate specifications inside.
+      # E.g., `min_variabel{kategori={sektor="veitrafikk", utslippskilde=["personbiler", "varebiler"]}, år=2019, scenario="referansebane"}`
+      # Formulas may be split across multiple lines
+      # As many formulas as necessary may be given. In each formula, the variable name "_" may be used to refer to the value of the previous expression.
+      # If one needs to refer to an expression further back than the previous one "{n}" may be used, where n is the number in the list.
+      # If this gets complex, we may consider allowing `formler` to a dictionary, so that the keys can be used to refer to previous steps rather than
+      # numbers that can change if somebody adds, removes or reorders steps.
+  - år: {{ years_or_range2 }}
+    gass: {{ gas_names2 }}
+    kategori:
+      sektor: {{ sector_names2 }}
+    formler:
+      - {{ formula2 }}
+  # More items can be added as many times as necessary, though the coordinate
+  # values should not overlap ones that have already been specified. After
+  # having parsed all, the parser will check that values or expressions have
+  # been specified for all coordinate values that a variable depends on, and
+  # raise an error before starting calculations if not.

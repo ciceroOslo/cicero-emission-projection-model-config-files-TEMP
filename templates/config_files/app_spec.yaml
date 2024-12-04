@@ -1,0 +1,349 @@
+# yaml-language-server: $schema=./app_spec_yaml_schema.json
+#
+# This is an example file for configuration of application specifications.
+# It is intended to hold all the information about the application structure,
+# as well as input data sources and processing. The content of this file is
+# intended to change only when changes are made to the model structure itself,
+# such as adding new variables or sectors, or when adding new data sources
+# (which is typically done only when adding new variables and calculations,
+# or changing how some calculations are done).
+#
+# User-adjustable parameters are defined in a separate file (`params.yaml`).
+# Formulas for computations are defined in a subfolder tree of separate yaml
+# files.
+
+# First block contains metadata about the application as a whole, and the
+# version of this config file.
+app_code: "troms_fk_klimagassframskrivinger"
+app_name: "Klimagassframskrivinger for Troms fylkeskommune"
+config_version: "0.1.0"
+
+# Dimensions are specified in the dictionary below. The keys are model IDs.
+# Nested dictionaries are used for multi-level dimensions.
+dimensions:
+  kategori:
+    name: "Kategori"
+    description: "Kategori, sammensatt av Sektor, Utslippskilde og Bidrag"
+    type: "multi"
+    values: [
+      ["Veitrafikk", "Personbiler", "Personbiler"],
+      ["Veitrafikk", "Busser", "Kommunale busser"],
+      ["Veitrafikk", "Busser", "Andre busser"],
+      ["Energiforsyning", "Avfallsforbrenning", "Kvitebjørn Varme avfallsforbrenning"],
+      ["Energiforsyning", "Fjernvarme unntatt avfallsforbrenning", "Fjernvarme unntatt avfallsforbrenning"],
+    ]
+    sub_dims:
+      sektor:
+        name: "Sektor"
+        description: "Sektor"
+        type: "str"
+      utslippskilde:
+        name: "Utslippskilde"
+        description: "Utslippskilde"
+        type: "str"
+      bidrag:
+        name: "Bidrag"
+        description: "Bidrag"
+        type: "str"
+  år:
+    name: "År"
+    description: "År"
+    type: "int"
+    values: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024,
+             2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034,
+             2035]
+  gass:
+    name: "Gass"
+    description: "Type drivhusgass, angitt med kjemisk symbol"
+    type: "str"
+    values: ["CO2", "CH4", "N2O"]
+  bane:
+    name: "Bane"
+    description: "Usikkerhetsbane, angitt som Middel, Øvre eller Nedre, for
+      variabelverdier som gir mest sannsynlige, øvre eller nedre verdier for
+      utslipp."
+    type: "str"
+    values: ["Middel", "Øvre", "Nedre"]
+  energitype:
+    name: "Energitype"
+    description: "Type energi som en gitt variabelverdi gjelder for. Benyttes
+      kun for variabler som har ulike verdier for flere ulike energityper,
+      ikke for variabler som eksplisitt kun gjelder for én energitype."
+    type: "str"
+    values: ["Bensin", "Diesel", "Biodiesel", "Etanol", "LPG", "Naturgass",
+             "Biogass", "Avfall", "El", "Fjernvarme", "Koks", "Biomasse",
+             "Ved"]
+
+# Variables are defined in the block below. The keys are variable IDs (short
+# codes). All variables that are to be used in the model must be defined here,
+# including both those whose baseline values are obtained from input data
+# sources, and those that are entirely calculated from other variables.
+# Ordering of dimensions should not matter, but should by convention be listed
+# in the same order as they appear in the `dimensions` block above.
+#
+# TODO: Consider whether we should make all the variables dependent on "region"
+# or a similar dimension that represents kommune or fylke.
+#
+# TIL RAGNHILD OG REIDUN: Når dere legger til variabler, marker spesielt dem som
+# kommer direkte fra inputdata (i hvert fall i referansebanen, selv om verdier i
+# andre scenarier kanskje beregnes). Skriv f.eks. "TIL JIK: Hentes fra inputdata, XXX",
+# hvor "XXX" er hvilken kilde variabeldataene skal komme fra (trenger ikke være en
+# gyldig inputdatakode, bare et navn som vi alle forstår).
+variables:
+  mdir_utslipp_kommuner_og_fylker:
+    name: "Utslipp fra Mijlødirektoratets klimagassregnskap"
+    description: "Utslipp av klimagasser i Miljødirektoratets klimagasstatistikk
+      for kommuner og fylker, for det aktuelle geografiske området"
+    unit: "Mg CO2e"
+    # Use slash (/) to specify sublevels when a variable depends on some but
+    # not all levels of a multilevel dimension. If a variable depends on all
+    # sublevels, only the name of the multilevel dimension itself is needed
+    # ("kategori" in this case).
+    dimensions: ["kategori/sektor", "kategori/utslippskilde", "år", "gass"]
+  innbtall:
+    name: "Innbyggertall"
+    description: "Antall faste innbyggere i området (snitt av 1.1 og 31.12)"
+    unit: ""  # `unit` should be SI units and/or scale factors. Should not include dimensionless classifiers like "personer".
+    dimensions: ["år", "bane"]
+  trafikkarbeid:
+    name: "Trafikkarbeid"
+    description: "Total kjørelengde innenfor det geografiske området, for
+      kjøretøy i gitt kategori"
+    unit: "km"
+    dimensions: ["kategori", "år", "bane"]
+  trafikkarbeid_per_innb:
+    name: "Trafikkarbeid per innbygger"
+    description: "Total kjørelengde innenfor det geografiske området for
+      kjøretøy i gitt kategori, dividert på antall innbyggere"
+    unit: "km"  # Still just "km", since we divide by a dimensionless quantity
+    dimensions: ["kategori", "år", "bane"]
+  andel_trafikkarbeid_diesel:
+    name: "Andel trafikkarbeid for diesel"
+    description: "Andel av total kjørelengde for kjøretøy i gitt kategori som
+      kjøres med diesel (normert til 1.0, ikke prosent)."
+    unit: ""  # Dimensionless and no scale factor, since we use ratios and not percentages. Can use "%", but then the values must be normalized to 100.
+    dimensions: ["kategori", "år", "bane"]
+  uf_km_diesel:
+    name: "Utslippsfaktor per kjørelengde for diesel"
+    description: "Utslippsfaktor per kjørelengde for kjøretøy i gitt kategori
+      som kjøres med diesel."
+    unit: "Mg/km"  # Using SI unit. May consider creating "tonne" as an alias for "Mg".
+    dimensions: ["kategori", "år", "gass", "bane"]
+  andel_karbonfangst:
+    name: "Andel karbonfangst"
+    description: "Andel av utslipp i gitt kategori som fanges (normert til 1.0).
+      Er definert for hver gass, men må settes til 0 for andre gasser en CO2."
+    unit: ""
+    dimensions: ["kategori", "år", "gass", "bane"]
+  mdir_tilleggsinfo_mengde_forbrent_avfall:
+    name: "Mengde forbrent avfall ifølge Miljødirektoratet"
+    description: "Statistikk for mengde forbrent avfall i hver kommune fra
+      tilleggsinformasjonen til Miljødirektoratet klimagassregnskap."
+    unit: "Mg"
+    dimensions: ["år"]
+
+# The block below contains scenario definitions under the subkey "scenario_defs"
+# and scenario order and grouping under the subkey "scenario_order".
+# "scenario_order" is a dict where the keys are scenario group IDs (correspond
+# to "tiltakspakker" in previous models), and the values are lists of scenarios
+# in the order that they should be evaluated.
+scenarios:
+  scenario_defs:
+    Referansebane:
+      name: "Referansebane"
+      description: ""
+    T1.1_Kollektiv_buss:
+      name: "Planlagte tiltak for utslippsreduksjoner i kollektivtrafikk (busser)"
+      description: "Utslippsreduserende tiltak for kollektivbusser som er planlagt,
+        men ennå ikke gjennomført."
+    T2.1_Transportreduksjon:
+      name: "Transportreduserende tiltak for persontrafikk"
+      description: ""
+    E2.1_CCS_Avfallsforbr_kv:
+      name: "CCS på avfallsforbrenning ved Kvitebjørn Varme"
+      description: ""
+    T3.1_Nullutslippssone_person:
+      name: "Alle personbiler er utslippsfrie innen 2040"
+      description: ""
+    E3.1_CCS_Avfallsforbr_B:
+      name: "CCS på avfallsforbrenning ved Botnhågen avfallsforbrenningsanlegg"
+      description: ""
+  scenario_groups:
+    Referansebane:
+      name: "Referansebane"
+      description: ""
+    Tiltakspakke_1:
+      name: "Fylkeskommunale tiltak"
+      description: "Tiltak allerede planlagt av fylkeskommunen"
+    Tiltakspakke_2:
+      name: "Klimakur og liknende tiltak"
+      description: "Tiltak hentet fra eller som tilsvarer tiltak i Klimakur 2030
+        og etterfølgende tiltaksanalyser utredet av Miljødirektoratet."
+    Tiltakspakke_3:
+      name: "Kraftfulle tiltak"
+      description: "Tiltak som går betydelig utover ambisjonene i Klimakur og
+        etterfølgende tiltaksanalyser."
+  scenario_order:
+    Referansebane:
+      - "Referansebane"
+    Tiltakspakke_1:
+      - "T1.1_Kollektiv_buss"
+    Tiltakspakke_2:
+      - "T2.1_Transportreduksjon"
+      - "E2.1_CCS_Avfallsforbr_kv"
+    Tiltakspakke_3:
+      - "T3.1_Nullutslippssone_person"
+      - "E3.1_CCS_Avfallsforbr_B"
+
+input_data_sources:
+  # TODO: Add example section for input data sources. Needs to have the info
+  # given in the config.dataproc.InputDataSourceSpec model. *But*, note that the
+  # InputDataSourcesConfig model may need to be in a separate, more frequently
+  # updated file, given the `current_input_files` field, which will need to
+  # change every time a new input file is added and used? In which case maybe
+  # the whole input data source config should be in that same file?
+  mdir_klimagassutslipp_kommuner_og_fylker:
+    name: "Miljødirektoratet: Klimagassutslipp i kommuner og fylker"
+    description: "Miljødirektoratets statistikk for klimagassutslipp i norske
+      kommuner og fylker.
+      URL: https://www.miljodirektoratet.no/klima/klimagassutslipp/klimagassutslipp-i-kommuner-og-fylker"
+    processors:
+      - processor_type: ".mdir.MdirKlimagassregnskapProcessor"
+        target_variable: "mdir_utslipp_kommuner_og_fylker"
+        processor_parameters:  # These are parameters passed to the processor object. Use an empty dictionary ({}) if none.
+          filter:
+            Kommunenummer: ["5401", "5402", "5403", ]  # TODO: List the remaining ones in Troms (but not Finnmark)
+          aggregation:
+            - operation: "sum"
+              over: "Kommune"
+      - processor_type: ".mdir.MDirTilleggsinfoProcessor"
+        target_variable: "mdir_tilleggsinfo_mengde_forbrent_avfall"  # Just an example, not sure whether we use this part of the tilleggsinfo
+        processor_parameters:
+          filter:
+            Kommunenummer: ["5401", "5402", "5403", ]  # TODO: List the remaining ones in Troms (but not Finnmark)
+            Navn: "Forbrent avfallsmengde"
+  karbonfangst_startandel:
+    name: "Andel CCS i referansebanen"
+    description: "Andel CCS i ulike kategorier i referansebanen, før tiltak.
+      Legges inn manuelt via Excel-mal, og angir bare andel CCS i
+      referansebanen. Andel i tiltaksscenarier settes ved å endre den samme
+      variabelen i beregningsformler."
+    processors:
+      - processor_type: ".excel.ExcelGenericTemplateProcessor"
+        target_variable: "andel_karbonfangst"
+        processor_parameters:
+          col_dim_map:  # Used to map column names to dimensions. Not actually needed here, just used for illustration
+            "Sektor": "kategori/sektor"
+            "Utslippskilde": "kategori/utslippskilde"
+            "Bidrag": "kategori/bidrag"
+            "År": "år"
+
+# The `app_params` block contains parameters that the app needs to run and to
+# define data structures, and that can change when setting up a new model for a
+# different context, but which usually should not be changed by users, and are
+# not numerical inputs to calculations or other types of adjustable parameters.
+# This includes things like the name of value columns and scenario columns in
+# value tables, but not parameters like projection start years, emission factors
+# and physical constants, GWP values, etc. Adjustable parameters should be
+# defined in the `model_params.yaml` block.
+app_params:
+  value_col_name: "Verdi"  # Name of value column in value tables
+  scenario_col_name: "Tiltaksnivå"  # Name of the column that holds the scenario ID in value tables
+
+# The `params` block (without `app_` contains parameters (mostly numerical ones) that can
+# be adjusted by the user, and may need to be adjusted when updating the model
+# or when conventions change (such as GWP values, or mandated or recommended
+# emission factors). It can also be used to specify true/false switches or text
+# parameters that the calculation formulas can use to modify calculations, and
+# thus be used to modify the behavior of the model.
+#
+# Each parameter is defined (and treated by the model) in the same way as a
+# variable, except that it only has a single value (defined by the "value"
+# field), and does not depend on any dimensions or have a "dimensions" field.
+params:
+  param_defs:
+    GWP_CO2:
+      name: "GWP CO2"
+      description: "GWP-verdi som brukes for CO2 i modellresultatene"
+      type: "number"
+      value: 1.0
+      unit: "tonn_CO2e/tonn"
+    GWP_CH4:
+      name: "GWP CH4"
+      description: "GWP-verdi som brukes for CH4 i modellresultatene"
+      type: "number"
+      value: 28.0
+      unit: "tonn_CO2e/tonn"
+    GWP_N2O:
+      name: "GWP N2O"
+      description: "GWP-verdi som brukes for N2O i modellresultatene"
+      type: "number"
+      value: 265.0
+      unit: "tonn_CO2e/tonn"
+    GWP_CO2_Mdir_stat:
+      name: "GWP CO2 i Miljødirektoratets statistikk"
+      description: "GWP-verdi som brukes for CO2 i Miljødirektoratets
+        klimagasstatistikk for kommuner og fylker"
+      type: "number"
+      value: 1.0
+      unit: "tonn_CO2e/tonn"
+    GWP_CH4_Mdir_stat:
+      name: "GWP CH4 i Miljødirektoratets statistikk"
+      description: "GWP-verdi som brukes for CH4 i Miljødirektoratets
+        klimagasstatistikk for kommuner og fylker"
+      type: "number"
+      value: 28.0
+      unit: "tonn_CO2e/tonn"
+    GWP_N2O_Mdir_stat:
+      name: "GWP N2O i Miljødirektoratets statistikk"
+      description: "GWP-verdi som brukes for N2O i Miljødirektoratets
+        klimagasstatistikk for kommuner og fylker"
+      type: "number"
+      value: 265.0
+      unit: "tonn_CO2e/tonn"
+    uf_diesel:
+      name: "Utslippsfaktor for diesel"
+      description: "Utslipp per enhet energi for diesel. Brukes kun når energi
+        beregnes for gitt kategori, ikke når det benyttes en utslippsfaktor per
+        kjørelengde eller annen enhet som ikke er energi."
+      type: "number"
+      value: 73.55
+      unit: "kg/GJ"
+    tillat_negative_utslipp_bioCCS:
+      name: "Tillat negative utslipp for bio-CCS"
+      description: "Om fanget biogent CO2 skal regnes som et negativt utslipp."
+      type: "boolean"
+      value: false
+    avfallsmengde_regresjonsmetode:
+      name: "Regresjonstype for framskriving av avfallsmengde"
+      description: "Hvilken type regresjon som brukes for å framskrive avfallsmengder
+        fra mengdene i referanseperioden. Velg 'Lineær' eller 'Logaritmisk' for
+        lineær regresjon, eller 'Snitt' for å framskrive som konstant lik
+        gjennomsnittet."
+      type: "choice"
+      choices: ["Lineær", "Logaritmisk", "Snitt"]
+      value: "Snitt"
+  param_groups:
+    - name: "GWP-verdier"
+      description: "Faktorer for å konvertere CO2-ekvivalenter i ulike sammenhenger."
+      params:
+        - GWP_CO2
+        - GWP_CH4
+        - GWP_N2O
+        - GWP_CO2_Mdir_stat
+        - GWP_CH4_Mdir_stat
+        - GWP_N2O_Mdir_stat
+    - name: "Utslippsfaktorer"
+      description: "Grunnleggende utslippsfaktorer, som ikke endres i modellberegningene."
+      params:
+        - uf_diesel
+    - name: "Avfallsforbrenning og CCS"
+      description: "Parametere for beregning av utslipp fra avfallsforbrenning og
+        eventuell karbonfangst."
+      params:
+        - tillat_negative_utslipp_bioCCS
+        - avfallsmengde_regresjonsmetode
+    # TODO: Add more parameters.
+    # TODO: Consider what guidance to add about what quantities should be
+    #   specified as model parameters, and which should be variables that are
+    #   initialized from input data sources.
