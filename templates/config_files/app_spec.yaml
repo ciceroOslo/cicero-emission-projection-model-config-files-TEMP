@@ -141,6 +141,11 @@ variables:
       tilleggsinformasjonen til Miljødirektoratet klimagassregnskap."
     unit: "Mg"
     dimensions: ["år"]
+  tonn_stearinlys:
+    name: "Tonn stearinlys i kommunen"
+    description: "Tonn stearinlys fra statisikk xxx"
+    unit: "tonn"
+    dimensions: [år]
 
 # The block below contains scenario definitions under the subkey "scenario_defs"
 # and scenario order and grouping under the subkey "scenario_order".
